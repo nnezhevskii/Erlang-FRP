@@ -1,10 +1,11 @@
 -module(node).
 -export([start_node/2,
-  add_listener/2,
-  terminate/0,
-  timer/3,
-  timer_loop/3,
-  create_node/3, send_event/2]).
+         add_listener/2,
+         terminate/0,
+         timer/3,
+         timer_loop/3,
+         create_node/3,
+         send_event/2]).
 
 -export([loop/1]).
 
@@ -88,5 +89,3 @@ timer_loop(Pid, Msg, Interval) ->
   Pid ! Msg,
   timer:sleep(Interval),
   timer_loop(Pid, Msg, Interval).
-
-
