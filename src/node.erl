@@ -1,22 +1,15 @@
 -module(node).
--export([start_node/2,
-         add_listener/2,
-         terminate/0,
-         timer/3,
-         timer_loop/3,
-         create_node/3,
-         send_event/2]).
+
+-include("node.hrl").
+
+-export([start_node/1,
+  create_node/2,
+  send_event/2, timer_loop/3, timer/3]).
 
 -export([loop/1]).
 
 -export_type([node/0]).
 
--record(node,
-    {
-      pid       :: pid(),
-      listeners :: list(node()),
-      callback  :: fun()
-    }).
 
 %% If message doesn't contain system information it's processed by a callback function UserHandler.
 %% This message processed through pattern-matching.
@@ -26,66 +19,48 @@
 
 %% API
 
--spec start_node(list(pid()), fun()) -> {ok, node()}.
-start_node(Listeners, UserHandler) ->
-  Node = create_node(Listeners, UserHandler, self()),
+-spec start_node(fun()) -> {ok, node()}.
+start_node(UserHandler) ->
+  Node = create_node(UserHandler, self()),
   Pid = spawn_link(?MODULE, loop, [Node]),
-  NewNode = update_node(Node, Listeners, UserHandler, Pid),
+  NewNode = update_node(Node, UserHandler, Pid),
   {ok, NewNode}.
 
-add_listener(Host, Listener) ->
-  Host#node.pid ! {new_listener, Listener}.
-
-timer(Node, Msg, Interval) ->
-  spawn(?MODULE, timer_loop, [Node#node.pid, Msg, Interval]).
-
-send_event(Node, Msg) ->
-  Node#node.pid ! Msg.
-
-terminate() ->
-  self ! stop.
-
+send_event(Node, {event, Network, Msg}) ->
+  Node#node.pid ! {event, Network, Msg}.
 
 %% Other functions
 
-create_node(Listeners, UserHandler, Pid) ->
+create_node(UserHandler, Pid) ->
   Node = #node{
-            pid = Pid,
-            listeners = Listeners,
-            callback  = UserHandler
-        },
+    pid = Pid,
+    callback  = UserHandler
+  },
   Node.
 
 -spec loop(node()) -> ok.
 loop(Node) ->
-  Listeners   = Node#node.listeners,
   UserHandler = Node#node.callback,
+  NNode = Node#node{callback = UserHandler, pid = self()},
   receive
-    stop ->
-      send_all(Listeners, {system_command, stop}),
-      ok;
-    {new_listener, NNode} ->
-      NewNode = create_node(Listeners ++ [NNode], UserHandler, self()),
+    {update_node, NewNode} ->
       loop(NewNode);
-    {update_node, NNode} ->
-      loop(NNode);
-    Msg ->
-      send_all(Listeners, UserHandler(Msg)),
-      loop(Node)
+    {event, Network, Msg} ->
+      Value = UserHandler(Msg),
+      Listeners = digraph:out_neighbours(Network#network.graph, NNode),
+      [Child#node.pid ! {event, Network, Value} || Child <- Listeners],
+      loop(NNode)
   end.
 
-
-update_node(HostNode, Listeners, UserHandler, Pid) ->
-  NewNode = create_node(Listeners, UserHandler, Pid),
+update_node(HostNode, UserHandler, Pid) ->
+  NewNode = create_node(UserHandler, Pid),
   HostNode#node.pid ! {update_node, NewNode},
   NewNode.
 
--spec send_all(list(pid()), term()) -> ok.
-send_all(Nodes, Msg) ->
-  [Node#node.pid ! Msg ||  Node <- Nodes],
-  ok.
+timer({Network, Node}, Msg, Interval) ->
+  spawn_link(?MODULE, timer_loop, [Node, {event, Network, Msg}, Interval]).
 
-timer_loop(Pid, Msg, Interval) ->
-  Pid ! Msg,
+timer_loop(Node, {event, Network, Msg}, Interval) ->
+  node:send_event(Node, {event, Network, Msg}),
   timer:sleep(Interval),
-  timer_loop(Pid, Msg, Interval).
+  timer_loop(Node, {event, Network, Msg}, Interval).
