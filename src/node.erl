@@ -27,9 +27,14 @@ start_node(UserHandler) ->
   {ok, NewNode}.
 
 send_event(Node, {event, Network, Msg}) ->
-  Node#node.pid ! {event, Network, Msg}.
+  Node#node.pid ! {event, Network, Msg},
+  ok.
 
 %% Other functions
+
+-spec create_node(UserHandler, Pid) -> node() when
+      UserHandler :: fun(),
+      Pid         :: pid().
 
 create_node(UserHandler, Pid) ->
   Node = #node{
@@ -45,6 +50,10 @@ loop(Node) ->
   receive
     {update_node, NewNode} ->
       loop(NewNode);
+    {event, Network, stop} ->
+      Listeners = digraph:out_neighbours(Network#network.graph, NNode),
+      [Child#node.pid ! {event, Network, stop} || Child <- Listeners],
+      ok;
     {event, Network, Msg} ->
       Value = UserHandler(Msg),
       Listeners = digraph:out_neighbours(Network#network.graph, NNode),
