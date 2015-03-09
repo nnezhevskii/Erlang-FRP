@@ -8,11 +8,13 @@
          add_listeners/3,
          stop/1]).
 
+-spec create_network(node()) -> network().
 create_network(Node) ->
   NetworkGraph = digraph:new(),
   digraph:add_vertex(NetworkGraph, Node),
   #network{entry = Node, graph = NetworkGraph}.
 
+-spec add_listener(network(), node(),node()) -> {ok, network()}.
 add_listener(Network, Host, Node) ->
   Graph = Network#network.graph,
   digraph:add_vertex(Graph, Node),
