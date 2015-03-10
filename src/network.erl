@@ -12,9 +12,10 @@
 create_network(Node) ->
   NetworkGraph = digraph:new(),
   digraph:add_vertex(NetworkGraph, Node),
-  #network{entry = Node, graph = NetworkGraph}.
+  Network = #network{entry = Node, graph = NetworkGraph},
+  Network.
 
--spec add_listener(network(), node(),node()) -> {ok, network()}.
+-spec add_listener(network(), f_node(), f_node()) -> {ok, network()}.
 add_listener(Network, Host, Node) ->
   Graph = Network#network.graph,
   digraph:add_vertex(Graph, Node),
@@ -29,7 +30,7 @@ make_mailing(Network, Node, Msg) ->
   node:send_event(Node,{event, Network, Msg}),
   ok.
 
-add_listeners(Network, Host, Nodes) ->
+add_listeners(Network, Host, Nodes) when is_list(Nodes) ->
   [network:add_listener(Network, Host, Node) || Node <- Nodes],
   ok.
 

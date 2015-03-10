@@ -1,4 +1,4 @@
--record(node,
+-record(f_node,
 {
   pid       :: pid(),
   callback  :: fun()
@@ -10,3 +10,5 @@
   graph :: atom()
 }).
 
+-type network() :: #network{}.
+-type f_node()  :: #f_node{}.
