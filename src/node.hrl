@@ -1,7 +1,8 @@
 -record(f_node,
 {
   pid       :: pid(),
-  callback  :: fun()
+  callback  :: fun(),
+  state     :: any()
 }).
 
 -record(network,

@@ -19,9 +19,16 @@ create_network(Node) ->
 add_listener(Network, Host, Node) ->
   Graph = Network#network.graph,
   digraph:add_vertex(Graph, Node),
+  case digraph:vertex(Graph, Node) of
+    false ->
+      digraph:add_vertex(Graph, Node);
+    _ ->
+      ok
+  end,
   digraph:add_edge(Graph, Host, Node),
   NewNetwork = Network#network{entry = Network#network.entry, graph = Graph},
   {ok, NewNetwork}.
+
 
 make_mailing(Network, Msg) ->
   make_mailing(Network, Network#network.entry, Msg).
