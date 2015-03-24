@@ -3,17 +3,13 @@
 -include("node.hrl").
 
 -export([start_node/1,
-  create_node/3,
-  send_event/2, timer_loop/3, timer/3]).
--export([start_node/2]).
+         start_node/2,
+         create_node/3,
+         send_event/2,
+         timer_loop/3,
+         timer/3]).
+
 -export([loop/1]).
-
-
-%% If message doesn't contain system information it's processed by a callback function UserHandler.
-%% This message processed through pattern-matching.
-%% Callback function can have side-effects
-%% Recalculated result is sent to all listeners.
-%% If node should not handle the message, it must be skipped through identical case of pattern-matching.
 
 %% API
 
@@ -32,6 +28,7 @@ start_node(UserHandler) ->
 send_event(Node, {event, Network, Msg}) ->
   Node#f_node.pid ! {event, Network, Msg},
   ok.
+
 
 %% Other functions
 
@@ -61,7 +58,6 @@ loop(Node) ->
       ok;
     {event, Network, Msg} ->
       {NewState, Value} = UserHandler(Msg, Node#f_node.state  ),
-
       NNode = Node#f_node{callback = UserHandler, pid = self(), state = NewState},
       Listeners = digraph:out_neighbours(Network#network.graph, NNode),
       [Child#f_node.pid ! {event, Network, Value} || Child <- Listeners],
