@@ -1,13 +1,11 @@
 -record(f_node,
 {
   pid       :: pid(),
-  callback  :: fun(),
-  state     :: any()
+  callback  :: fun()
 }).
 
 -record(network,
 {
-  entry :: dict:dict(),
   graph :: atom()
 }).
 -type network() :: #network{}.

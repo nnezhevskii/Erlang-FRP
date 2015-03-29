@@ -4,69 +4,61 @@
 
 -export([start_node/1,
          start_node/2,
-         create_node/3,
+         create_node/2,
          send_event/2,
-         timer_loop/3,
          timer/3]).
 
--export([loop/1]).
-
-%% API
+-export([loop/2,
+         timer_loop/3]).
 
 -spec start_node(fun(), any()) -> {ok, f_node()}.
 start_node(UserHandler, StartState) ->
-  Node = create_node(UserHandler, self(), StartState),
-  Pid = spawn_link(?MODULE, loop, [Node]),
-  NewNode = update_node(Node, UserHandler, Pid, StartState),
+  Node = create_node(UserHandler, self()),
+  Pid = spawn_link(?MODULE, loop, [Node, StartState]),
+  NewNode = update_node(Node, UserHandler, Pid),
   {ok, NewNode}.
 
 -spec start_node(fun()) -> {ok, f_node()}.
 start_node(UserHandler) ->
-  start_node(UserHandler, nothing).
+  start_node(UserHandler, no_state).
 
-
-send_event(Node, {event, Network, Msg}) ->
-  Node#f_node.pid ! {event, Network, Msg},
-  ok.
-
-
-%% Other functions
-
--spec create_node(UserHandler, Pid, State) -> f_node() when
-      UserHandler :: fun(),
-      Pid         :: pid(),
-      State       :: any().
-
-create_node(UserHandler, Pid, State) ->
+-spec create_node(fun(), pid()) -> f_node().
+create_node(UserHandler, Pid) ->
   Node = #f_node{
     pid       = Pid,
-    callback  = UserHandler,
-    state     = State
+    callback  = UserHandler
   },
   Node.
 
--spec loop(f_node()) -> no_return().
-loop(Node) ->
+-spec send_event(f_node(), {event, network(), term(), any()}) -> ok.
+send_event(Node, {event, Network, NodeName, Msg}) ->
+  Node#f_node.pid ! {event, Network, NodeName, Msg},
+  ok.
+
+-spec loop(f_node(), any()) -> no_return().
+loop(Node, State) ->
   UserHandler = Node#f_node.callback,
   receive
     {update_node, NewNode} ->
-      loop(NewNode);
-    {event, Network, stop} ->
+      loop(NewNode, State);
+
+    {event, Network, NodeName, stop} ->
       NNode = Node#f_node{callback = UserHandler, pid = self()},
       Listeners = digraph:out_neighbours(Network#network.graph, NNode),
-      [Child#f_node.pid ! {event, Network, stop} || Child <- Listeners],
+      [Child#f_node.pid ! {event, Network, NodeName, stop} || Child <- Listeners],
       ok;
-    {event, Network, Msg} ->
-      {NewState, Value} = UserHandler(Msg, Node#f_node.state  ),
-      NNode = Node#f_node{callback = UserHandler, pid = self(), state = NewState},
-      Listeners = digraph:out_neighbours(Network#network.graph, NNode),
-      [Child#f_node.pid ! {event, Network, Value} || Child <- Listeners],
-      loop(NNode)
+
+    {event, Network, NodeName, Msg} ->
+      {NewState, Value} = UserHandler(State, Msg),
+      NNode = #f_node{pid = self(), callback = Node#f_node.callback},
+      {ok, FNodes} = network:get_listeners(Network, NodeName),
+      [network:send_event(Network, FNodeName, Value) || FNodeName <- FNodes],
+      loop(NNode, NewState)
   end.
 
--spec update_node(f_node(), fun(), pid(), any()) -> f_node().
-update_node(HostNode, UserHandler, Pid, State) ->
-  NewNode = create_node(UserHandler, Pid, State),
+-spec update_node(f_node(), fun(), pid()) -> f_node().
+update_node(HostNode, UserHandler, Pid) ->
+  NewNode = create_node(UserHandler, Pid),
   HostNode#f_node.pid ! {update_node, NewNode},
   NewNode.
 
