@@ -10,7 +10,8 @@
          add_node/2,
          update_node/2,
          get_fnode/2,
-         get_listeners/2]).
+         get_listeners/2,
+         add_nodes/2]).
 
 -spec new_network_graph() -> digraph:digraph().
 new_network_graph() ->
@@ -79,6 +80,10 @@ add_listener(Network, Host, Node) ->
     _ ->
       error
   end.
+
+-spec add_nodes(network(), list(term())) -> list().
+add_nodes(Network, Nodes) ->
+  [add_node(Network, {NodeName, Node}) || {NodeName, Node} <- Nodes].
 
 -spec send_event(network(), term(), any()) -> ok.
 send_event(Network, NodeName, Msg) ->

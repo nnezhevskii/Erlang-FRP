@@ -62,7 +62,7 @@ update_node(HostNode, UserHandler, Pid) ->
   HostNode#f_node.pid ! {update_node, NewNode},
   NewNode.
 
--spec timer({network(), f_node()}, any(), non_neg_integer()) -> no_return().
+-spec timer({network(), term()}, any(), non_neg_integer()) -> no_return().
 timer({Network, NodeName}, Msg, Interval) ->
   spawn_link(?MODULE, timer_loop, [NodeName, {event, Network, Msg}, Interval]).
 
