@@ -2,7 +2,8 @@
 
 -include("node.hrl").
 
--export([create_network/0,
+-export([
+         create_network/0,
          add_listener/3,
          send_event/3,
          add_listeners/3,
@@ -11,11 +12,11 @@
          update_node/2,
          get_fnode/2,
          get_listeners/2,
-         add_nodes/2]).
+         add_nodes/2
+        ]).
 
--spec new_network_graph() -> digraph:digraph().
-new_network_graph() ->
-  digraph:new().
+%% Constructing network. This network has one node named external_entry
+%% external_entry can be used as source of flow.
 
 -spec create_network() -> network().
 create_network() ->
@@ -28,6 +29,9 @@ create_network() ->
   {ok, external_entry} = add_node(Network, {external_entry, Entry}),
   Network.
 
+%% Addition new node in network.
+%% This node must have unique name.
+
 -spec add_node(network(), {term(), f_node()}) -> {ok, term()} | {error, existing_node}.
 add_node(Network, {NodeName, Node}) ->
   NetGraph = Network#network.graph,
@@ -38,6 +42,47 @@ add_node(Network, {NodeName, Node}) ->
     _ ->
       {error, existing_node}
   end.
+
+-spec add_nodes(network(), list(term())) -> list().
+add_nodes(Network, Nodes) ->
+  [add_node(Network, {NodeName, Node}) || {NodeName, Node} <- Nodes].
+
+%% Setting dependency between pair of node.
+
+-spec add_listener(network(), term(), term()) -> {ok, network()}.
+add_listener(Network, Host, Node) ->
+  case {get_fnode(Network, Host), get_fnode(Network, Node)} of
+    {{ok, _}, {ok, _}} ->
+      digraph:add_edge(Network#network.graph, Host, Node),
+      {ok, Host, Node};
+    _ ->
+      error
+  end.
+
+-spec add_listeners(network(), f_node(), list(f_node())) -> ok.
+add_listeners(Network, Host, Nodes) when is_list(Nodes) ->
+  [network:add_listener(Network, Host, Node) || Node <- Nodes].
+
+%% Sending event to node in network.
+%% Network has to have this node
+
+-spec send_event(network(), term(), any()) -> ok.
+send_event(Network, NodeName, Msg) ->
+  case get_fnode(Network, NodeName) of
+    {ok, FNode} ->
+      node:send_event(FNode, {event, Network, NodeName,  Msg});
+    Msg ->
+      Msg
+  end.
+
+%%
+%% Other functions
+%%
+
+-spec new_network_graph() -> digraph:digraph().
+new_network_graph() ->
+  digraph:new().
+
 
 -spec update_node(network(), {term(), f_node()}) -> {ok, term()} | {error, unknown_node}.
 update_node(Network, {NodeName, Node}) ->
@@ -70,34 +115,6 @@ get_listeners(Network, NodeName) ->
       Listeners = digraph:out_neighbours(NetGraph, NodeName),
       {ok, Listeners}
   end.
-
--spec add_listener(network(), term(), term()) -> {ok, network()}.
-add_listener(Network, Host, Node) ->
-  case {get_fnode(Network, Host), get_fnode(Network, Node)} of
-    {{ok, _}, {ok, _}} ->
-      digraph:add_edge(Network#network.graph, Host, Node),
-      {ok, Host, Node};
-    _ ->
-      error
-  end.
-
--spec add_nodes(network(), list(term())) -> list().
-add_nodes(Network, Nodes) ->
-  [add_node(Network, {NodeName, Node}) || {NodeName, Node} <- Nodes].
-
--spec send_event(network(), term(), any()) -> ok.
-send_event(Network, NodeName, Msg) ->
-  case get_fnode(Network, NodeName) of
-    {ok, FNode} ->
-      node:send_event(FNode, {event, Network, NodeName,  Msg});
-    Msg ->
-      Msg
-  end.
-
--spec add_listeners(network(), f_node(), list(f_node())) -> ok.
-add_listeners(Network, Host, Nodes) when is_list(Nodes) ->
-  [network:add_listener(Network, Host, Node) || Node <- Nodes],
-  ok.
 
 -spec stop(network()) -> no_return().
 stop(Network) ->
