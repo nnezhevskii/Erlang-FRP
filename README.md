@@ -13,16 +13,21 @@
 
 Создание узла:
 ```
-{ok, Node} = network_api:start_node(CustomHandler, StartingState).
+{ok, Node} = frp_api:start_node(CustomHandler, StartingState).
 
 ```
+Callback функция CustomHandler:
+```
+CustomHandler(State, Value) -> {NewState, NewValue}
+```
+
 Событие:
 ```
-network_api:event({NetworkName, NodeName}, Msg).
+frp_api:event({NetworkName, NodeName}, Msg).
 ```
 Постоянные события (через каждый Interval (мс) на узел NodeName приходит событие Msg):
 ```
-network_api:timer({Network, NodeName}, Msg, Interval)
+frp_api:timer({Network, NodeName}, Msg, Interval)
 ```
 
 #### Реализация сети
@@ -32,9 +37,29 @@ network_api:timer({Network, NodeName}, Msg, Interval)
 
 Создание сети:
 ```
-Network = network:create_network()
+Network = frp_api:create_network()
 ```
-Только что созданная сеть имеет узел ```external_entry``` с тождественной функцией и состоянием no_state
+Только что созданная сеть имеет узел ```external_entry``` с тождественной функцией и состоянием no_state.
 Рекомендуется все узлы-входы (не имеющие значений, от которых зависят) определять как потомков этого узла
+
+Добавление узлов в сеть:
+```
+frp_api:add_node(Network, {NodeName, Node})
+```
+
+```
+Nodes = [{node_name1, Node1}, {node_name2, Node2}, ... {node_nameN, NodeN}]
+frp_api:add_nodes(Network, Nodes)
+```
+
+Установление зависимостей между узлами:
+```
+frp_api:add_listener(Network, HostNode, Node)
+```
+
+```
+Nodes = [{node_name1, Node1}, {node_name2, Node2}, ... {node_nameN, NodeN}]
+frp_api:add_listeners(Network, HostNode, Nodes)
+```
 
 [digraph]:http://www.erlang.org/doc/man/digraph.html
