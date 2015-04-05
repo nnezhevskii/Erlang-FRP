@@ -63,11 +63,12 @@ update_node(HostNode, UserHandler, Pid) ->
   NewNode.
 
 -spec timer({network(), f_node()}, any(), non_neg_integer()) -> no_return().
-timer({Network, Node}, Msg, Interval) ->
-  spawn_link(?MODULE, timer_loop, [Node, {event, Network, Msg}, Interval]).
+timer({Network, NodeName}, Msg, Interval) ->
+  spawn_link(?MODULE, timer_loop, [NodeName, {event, Network, Msg}, Interval]).
 
--spec timer_loop(f_node(), {term(), network(), any()}, non_neg_integer()) -> no_return().
-timer_loop(Node, {event, Network, Msg}, Interval) ->
+-spec timer_loop(term(), {term(), network(), any()}, non_neg_integer()) -> no_return().
+timer_loop(NodeName, {event, Network, Msg}, Interval) ->
+  {ok, Node} = network:get_fnode(Network, NodeName),
   node:send_event(Node, {event, Network, Msg}),
   timer:sleep(Interval),
-  timer_loop(Node, {event, Network, Msg}, Interval).
+  timer_loop(NodeName, {event, Network, Msg}, Interval).
